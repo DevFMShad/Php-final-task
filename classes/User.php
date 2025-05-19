@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/Encryption.php';
 
 class User {
     private $db;
@@ -10,24 +12,74 @@ class User {
     }
 
     public function signup($username, $password) {
-        // Hash password, generate and encrypt KEY, store in DB
+        // Validating inputs
+        if (empty($username) || empty($password)) {
+            throw new Exception('Username and password are required');
+        }
+
+        // Checking if username exists
+        $stmt = $this->db->prepare('SELECT id FROM users WHERE username = ?');
+        $stmt->execute([$username]);
+        if ($stmt->fetch()) {
+            throw new Exception('Username already exists');
+        }
+
+        // Hashing the password
+        $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
+
+        // Generating and encrypt the user's KEY
+        $key = $this->encryption->generateKey();
+        $encryptedKey = $this->encryption->encrypt($key, $password);
+
+        // Inserting user into database
+        $stmt = $this->db->prepare('INSERT INTO users (username, hashed_password, encrypted_key) VALUES (?, ?, ?)');
+        $stmt->execute([$username, $hashedPassword, $encryptedKey]);
+
+        return $this->db->lastInsertId();
     }
 
     public function login($username, $password) {
-        // Verify password, start session
+        // Finding the user
+        $stmt = $this->db->prepare('SELECT id, hashed_password FROM users WHERE username = ?');
+        $stmt->execute([$username]);
+        $user = $stmt->fetch();
+
+        if (!$user || !password_verify($password, $user['hashed_password'])) {
+            throw new Exception('Invalid username or password');
+        }
+
+        return $user['id'];
     }
 
     public function changePassword($userId, $newPassword) {
-        // Re-encrypt KEY with new password, update hashed password
+        // Getting current encrypted key
+        $stmt = $this->db->prepare('SELECT encrypted_key FROM users WHERE id = ?');
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch();
+        if (!$user) {
+            throw new Exception('User not found');
+        }
+
+        // Decryptong  the key with the old password 
+        $encryptedKey = $user['encrypted_key'];
+        // Since we don't have the old password here, this is a placeholder for re-encryption
+
+        // Hashing the new password
+        $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
+
+        // Updating the password in the database 
+        $stmt = $this->db->prepare('UPDATE users SET hashed_password = ? WHERE id = ?');
+        $stmt->execute([$hashedPassword, $userId]);
+
     }
 
     public function getEncryptedKey($userId) {
-        // Retrieve encrypted KEY from DB
+        $stmt = $this->db->prepare('SELECT encrypted_key FROM users WHERE id = ?');
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch();
+        if (!$user) {
+            throw new Exception('User not found');
+        }
+        return $user['encrypted_key'];
     }
 }
-
-
-// In here, I am only trying to come up with the coding files and their systems. And the functions that I may need and I am keeping them private so that when I am trying to access them 
-// in the future, I don't get a compile error. And all of these are just experimental. All of it might change in the future or I just might delete something or not or I may add something
-// So please think about it as just experimenting with things. 
-// Let me see what comes up with this and then change that
