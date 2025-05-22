@@ -5,8 +5,8 @@ class Database {
     public function __construct() {
         $host = 'localhost';
         $dbname = 'password_manager';
-        $username = 'root'; // need to chaneg this agter I have finisshed the project
-        $password = '';     // I will have the change this 
+        $username = 'root'; 
+        $password = '';     
         try {
             $this->pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
             $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
