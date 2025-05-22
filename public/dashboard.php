@@ -7,17 +7,26 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$error = '';
+$errors = [];
 $passwords = [];
-try {
-    $passwordManager = new PasswordManager();
-    // Note: Requires user password to decrypt passwords; for simplicity, we assume it's stored in session or re-entered
-    // In a real app, you'd prompt for the password or use a session-based mechanism
-    if (isset($_POST['decrypt_password'])) {
-        $passwords = $passwordManager->getPasswords($_SESSION['user_id'], $_POST['decrypt_password']);
+$decryptPassword = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Retrieve and validate input
+    $decryptPassword = $_POST['decrypt_password'];
+    if (empty($decryptPassword)) {
+        $errors[] = 'Password is required to view passwords';
     }
-} catch (Exception $e) {
-    $error = $e->getMessage();
+
+    // Proceed if no validation errors
+    if (empty($errors)) {
+        try {
+            $passwordManager = new PasswordManager();
+            $passwords = $passwordManager->getPasswords($_SESSION['user_id'], $decryptPassword);
+        } catch (Exception $e) {
+            $errors[] = $e->getMessage();
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -37,10 +46,14 @@ try {
         <a href="logout.php" class="btn btn-secondary m-2">Logout</a>
 
         <h3 class="mt-4">Your Passwords</h3>
-        <?php if ($error): ?>
-            <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+        <?php if (!empty($errors)): ?>
+            <div class="alert alert-danger">
+                <?php foreach ($errors as $error): ?>
+                    <p><?php echo htmlspecialchars($error); ?></p>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
-        <form method="POST" class="mb-3">
+        <form method="POST">
             <div class="form-group">
                 <label for="decrypt_password">Enter Your Password to View Passwords</label>
                 <input type="password" name="decrypt_password" id="decrypt_password" class="form-control" required>
